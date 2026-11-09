@@ -1,13 +1,17 @@
 "use client";
-import type { Product } from "./page";
+import type { Product } from "../page";
 
 type Props = {
   cat: string; setCat: (v:string)=>void;
   q: string; setQ: (v:string)=>void;
   categories: string[]; filtered: Product[];
+  loading: boolean; productsCount: number;
+  // ✅ BRAND
+  brandFilter: string; setBrandFilter: (v:string)=>void; availableBrands: string[];
   selected: Product|null; setSelected: (v:any)=>void; openProduct: (p:Product)=>void;
   selSize: string; setSelSize: (v:string)=>void;
   selColor: string; setSelColor: (v:string)=>void;
+  selBrand: string; setSelBrand: (v:string)=>void;
   qty: number; setQty: (v:number)=>void;
   cart: any[]; total: number; addToCart: ()=>void; removeFromCart: (i:number)=>void;
   wishlist: string[]; toggleWishlist: (id:string)=>void;
@@ -20,7 +24,7 @@ export default function SwiftMartUI(p: Props) {
       {/* HEADER */}
       <header className="sticky top-0 z-40 bg-[#0F172A]/95 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center gap-3">
         <div className="text-2xl font-black">🛒 <span className="text-amber-400">Swift</span>Mart</div>
-        <input value={p.q} onChange={e=>p.setQ(e.target.value)} placeholder="Search shoes, cars, TV, generator..." className="flex-1 bg-white/10 rounded-full px-4 py-2 text-sm outline-none placeholder:text-white/50" />
+        <input value={p.q} onChange={e=>p.setQ(e.target.value)} placeholder="Search shoes, cars, TV, generator, Samsung, LG..." className="flex-1 bg-white/10 rounded-full px-4 py-2 text-sm outline-none placeholder:text-white/50" />
         <button onClick={()=>p.setShowCart(true)} className="relative bg-amber-400 text-black font-bold px-4 py-2 rounded-full">Cart 🛒 {p.cart.length>0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">{p.cart.length}</span>}</button>
       </header>
 
@@ -37,6 +41,23 @@ export default function SwiftMartUI(p: Props) {
         ))}
       </div>
 
+      {/* ✅ BRAND / TYPE FILTER */}
+      {p.cat!=="All" && (
+        <div className="px-4 pb-2">
+          <p className="text-xs font-bold text-white/60 mb-2">Choose Type / Brand in {p.cat}:</p>
+          <div className="flex gap-2 overflow-x-auto">
+            {p.availableBrands.map(b=>(
+              <button key={b} onClick={()=>p.setBrandFilter(b)} className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold ${p.brandFilter===b?"bg-white text-black":"bg-white/10"}`}>{b}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ✅ LOADING / EMPTY */}
+      {p.loading && <p className="px-4 py-10 text-center text-white/60">Loading products from backend... ⏳</p>}
+      {!p.loading && p.productsCount===0 && <p className="px-4 py-10 text-center text-white/60">No products yet. Admin needs to add products.<br/>Check if backend-node is running on Render.</p>}
+      {!p.loading && p.productsCount>0 && p.filtered.length===0 && <p className="px-4 py-10 text-center text-white/60">No {p.brandFilter!=="All Brands"? p.brandFilter+" " : ""}{p.cat} found. Try All Brands.</p>}
+
       {/* GRID */}
       <div className="px-4 pb-24 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {p.filtered.map(prod=>(
@@ -44,21 +65,21 @@ export default function SwiftMartUI(p: Props) {
             <div onClick={()=>p.openProduct(prod)} className="cursor-pointer">
               <div className="text-6xl md:text-7xl h-32 md:h-40 flex items-center justify-center bg-white/5">{prod.img}</div>
               <div className="p-3">
-                <p className="text-[11px] text-amber-400 font-bold">{prod.category}</p>
+                <p className="text-[11px] text-amber-400 font-bold">{prod.category} • {prod.brand || "Generic"}</p>
                 <h3 className="font-bold text-sm leading-tight line-clamp-2 min-h-[36px]">{prod.name}</h3>
-                <p className="text-xs text-white/60">⭐ {prod.rating} • {prod.stock} in stock • Sizes: {prod.sizes.slice(0,3).join(", ")}...</p>
+                <p className="text-xs text-white/60">⭐ {prod.rating} • {prod.stock} in stock • Sizes: {(prod.sizes||[]).slice(0,3).join(", ")}...</p>
                 <div className="flex items-center gap-2 mt-1"><span className="font-black text-amber-400">₦{prod.price.toLocaleString()}</span>{prod.oldPrice && <span className="text-xs line-through text-white/40">₦{prod.oldPrice.toLocaleString()}</span>}</div>
               </div>
             </div>
             <div className="px-3 pb-3 flex gap-2">
-              <button onClick={()=>p.openProduct(prod)} className="flex-1 bg-amber-400 text-black py-2 rounded-full text-xs font-black">VIEW + CHOOSE SIZE</button>
+              <button onClick={()=>p.openProduct(prod)} className="flex-1 bg-amber-400 text-black py-2 rounded-full text-xs font-black">VIEW + CHOOSE</button>
               <button onClick={()=>p.toggleWishlist(prod.id)} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">{p.wishlist.includes(prod.id)?"❤️":"🤍"}</button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* PRODUCT MODAL - SIZE & COLOR */}
+      {/* PRODUCT MODAL - BRAND + SIZE + COLOR */}
       {p.selected && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-end md:items-center justify-center p-0 md:p-4" onClick={()=>p.setSelected(null)}>
           <div className="bg-[#1E293B] w-full max-w-lg rounded-t-3xl md:rounded-3xl p-5 max-h-[92vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
@@ -67,18 +88,26 @@ export default function SwiftMartUI(p: Props) {
             <p className="text-sm text-white/70">{p.selected.desc}</p>
             <p className="mt-2 font-black text-2xl text-amber-400">₦{p.selected.price.toLocaleString()} {p.selected.oldPrice && <span className="text-sm line-through text-white/40">₦{p.selected.oldPrice.toLocaleString()}</span>}</p>
 
-            <p className="mt-4 font-bold text-sm">Select Size {p.selected.category==="Cars"?"(Year)":p.selected.category==="TVs"?"(Inches)":""} <span className="text-red-400">*</span></p>
+            {/* ✅ BRAND / TYPE */}
+            <p className="mt-4 font-bold text-sm">Select Brand / Type <span className="text-red-400">*</span> {p.selBrand && <span className="text-amber-400">— {p.selBrand}</span>}</p>
             <div className="flex flex-wrap gap-2 mt-2">
-              {p.selected.sizes.map(s=>(
+              {(p.availableBrands.filter(b=>b!=="All Brands").length>0 ? p.availableBrands.filter(b=>b!=="All Brands") : [p.selected.brand || "Generic"]).map(b=>(
+                <button key={b} onClick={()=>p.setSelBrand(b)} className={`px-4 py-2 rounded-full border text-sm font-bold ${p.selBrand===b?"bg-white text-black border-white":"border-white/20 bg-white/5"}`}>{b}</button>
+              ))}
+            </div>
+
+            <p className="mt-4 font-bold text-sm">Select Size {p.selected.category==="Cars"?"(Year)":p.selected.category==="TVs"?"(Inches)":p.selected.category==="Freezers"?"(Litres)":p.selected.category==="Generators"?"(KVA)":""} <span className="text-red-400">*</span></p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {(p.selected.sizes||[]).map(s=>(
                 <button key={s} onClick={()=>p.setSelSize(s)} className={`px-4 py-2 rounded-full border text-sm font-bold ${p.selSize===s?"bg-amber-400 text-black border-amber-400":"border-white/20 bg-white/5"}`}>{s}</button>
               ))}
             </div>
 
             <p className="mt-4 font-bold text-sm">Select Color <span className="text-red-400">*</span> {p.selColor && <span className="text-amber-400">— {p.selColor}</span>}</p>
             <div className="flex gap-3 mt-2">
-              {p.selected.colors.map(c=>(
+              {(p.selected.colors||[]).map(c=>(
                 <button key={c} onClick={()=>p.setSelColor(c)} className="flex flex-col items-center gap-1">
-                  <span className={`w-9 h-9 rounded-full border-2 ${p.selColor===c?"border-amber-400 scale-110":"border-white/20"}`} style={{background: p.selected!.colorHex[c]||"#333"}} />
+                  <span className={`w-9 h-9 rounded-full border-2 ${p.selColor===c?"border-amber-400 scale-110":"border-white/20"}`} style={{background: p.selected!.colorHex?.[c]||"#333"}} />
                   <span className="text-[11px]">{c}</span>
                 </button>
               ))}
@@ -89,11 +118,11 @@ export default function SwiftMartUI(p: Props) {
               <button onClick={()=>p.setQty(Math.max(1,p.qty-1))} className="w-8 h-8 bg-white/10 rounded-full">-</button>
               <span className="font-black">{p.qty}</span>
               <button onClick={()=>p.setQty(p.qty+1)} className="w-8 h-8 bg-white/10 rounded-full">+</button>
-              <span className="ml-auto text-sm text-white/60">Stock: {p.selected.stock}</span>
+              <span className="ml-auto text-sm text-white/60">Stock: {p.selected.stock} • Brand: {p.selBrand}</span>
             </div>
 
-            <button onClick={p.addToCart} className="w-full mt-5 bg-amber-400 text-black py-3.5 rounded-full font-black">ADD TO CART — ₦{(p.selected.price*p.qty).toLocaleString()} • {p.selSize||"Choose Size"} • {p.selColor}</button>
-            <p className="text-center text-xs text-white/50 mt-2">You must choose Size + Color before adding</p>
+            <button onClick={p.addToCart} className="w-full mt-5 bg-amber-400 text-black py-3.5 rounded-full font-black">ADD TO CART — ₦{(p.selected.price*p.qty).toLocaleString()} • {p.selBrand||"Choose Brand"} • {p.selSize||"Choose Size"} • {p.selColor}</button>
+            <p className="text-center text-xs text-white/50 mt-2">You must choose Brand + Size + Color before adding</p>
           </div>
         </div>
       )}
@@ -103,11 +132,11 @@ export default function SwiftMartUI(p: Props) {
         <div className="fixed inset-0 z-50 bg-black/80 flex justify-end" onClick={()=>p.setShowCart(false)}>
           <div className="bg-[#1E293B] w-full max-w-md h-full p-5 overflow-y-auto" onClick={e=>e.stopPropagation()}>
             <div className="flex justify-between"><h2 className="font-black text-xl">Your Cart ({p.cart.length})</h2><button onClick={()=>p.setShowCart(false)}>✕</button></div>
-            {p.cart.length===0 && <p className="mt-6 text-white/60 text-center">Cart is empty. Tap a product → Choose Size + Color → Add.</p>}
+            {p.cart.length===0 && <p className="mt-6 text-white/60 text-center">Cart is empty. Tap a product → Choose Brand + Size + Color → Add.</p>}
             {p.cart.map((c,i)=>(
               <div key={i} className="flex gap-3 bg-white/5 rounded-2xl p-3 mt-3">
                 <div className="text-4xl">{c.img}</div>
-                <div className="flex-1"><p className="font-bold text-sm">{c.name}</p><p className="text-xs text-amber-400">Size: {c.size} • Color: {c.color} • Qty: {c.qty}</p><p className="font-black">₦{(c.price*c.qty).toLocaleString()}</p></div>
+                <div className="flex-1"><p className="font-bold text-sm">{c.name}</p><p className="text-xs text-amber-400">Brand: {c.brand} • Size: {c.size} • Color: {c.color} • Qty: {c.qty}</p><p className="font-black">₦{(c.price*c.qty).toLocaleString()}</p></div>
                 <button onClick={()=>p.removeFromCart(i)} className="text-red-400">🗑️</button>
               </div>
             ))}
@@ -122,4 +151,4 @@ export default function SwiftMartUI(p: Props) {
       </div>
     </div>
   );
-} 
+}
