@@ -1,0 +1,135 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import AuthUI from "./components/AuthComponents";
+import { saveAuth, getUser, validateName, validateEmail, validatePhone, validatePassword } from "../../lib/auth";
+
+const API_URL = (process.env as any).NEXT_PUBLIC_SHOP_API_URL || "https://swiftmart-node.onrender.com";
+
+export type Mode = "login" | "signup";
+
+export default function AuthPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>("login");
+
+  // Form
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [agree, setAgree] = useState(false);
+
+  // Errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pwErrors, setPwErrors] = useState<string[]>([]);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number>(0);
+
+  useEffect(() => {
+    // Already logged in? Redirect by role
+    const u = getUser();
+    if (u) router.replace(u.role === "admin" ? "/admin" : "/");
+  }, [router]);
+
+  const switchMode = (m: Mode) => {
+    setMode(m); setErrors({}); setMsg(""); setPwErrors([]);
+  };
+
+  const validateForm = (): boolean => {
+    const errs: Record<string, string> = {};
+    const emailErr = validateEmail(email);
+    if (emailErr) errs.email = emailErr;
+
+    if (mode === "signup") {
+      const nameErr = validateName(name);
+      if (nameErr) errs.name = nameErr;
+      const phoneErr = validatePhone(phone);
+      if (phoneErr) errs.phone = phoneErr;
+      const pwErrs = validatePassword(password);
+      setPwErrors(pwErrs);
+      if (pwErrs.length) errs.password = "Password too weak - see checklist below";
+      if (password !== confirm) errs.confirm = "Passwords do not match";
+      if (!agree) errs.agree = "You must accept Terms & Privacy";
+    } else {
+      if (!password) errs.password = "Password is required";
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    // Lock check
+    if (Date.now() < lockedUntil) {
+      const sec = Math.ceil((lockedUntil - Date.now()) / 1000);
+      setMsg(`🔒 Too many failed attempts. Try again in ${sec}s`);
+      return;
+    }
+    if (!validateForm()) return;
+    setLoading(true); setMsg("");
+
+    try {
+      if (mode === "signup") {
+        const r = await fetch(`${API_URL}/api/auth/register`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), phone: phone.trim(), password }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Signup failed");
+        // Backend returns token + user
+        saveAuth(d.token, { ...d.user, phone: phone.trim() });
+        setMsg("✅ Account created! Redirecting...");
+        setTimeout(() => router.replace("/"), 800);
+      } else {
+        const r = await fetch(`${API_URL}/api/auth/login`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Login failed");
+        setFailedAttempts(0);
+        saveAuth(d.token, d.user);
+        setMsg(`✅ Welcome back, ${d.user.name}!`);
+        setTimeout(() => router.replace(d.user.role === "admin" ? "/admin" : "/"), 800);
+      }
+    } catch (e: any) {
+      const m = e.message || "Something went wrong";
+      setMsg("❌ " + m);
+      if (mode === "login") {
+        const next = failedAttempts + 1;
+        setFailedAttempts(next);
+        if (next >= 5) {
+          setLockedUntil(Date.now() + 60 * 1000);
+          setMsg("🔒 5 failed attempts. Locked for 60 seconds.");
+        }
+      }
+      // Unique email error from backend
+      if (m.toLowerCase().includes("exist")) {
+        setErrors(prev => ({ ...prev, email: "This email is already registered. Try Login instead." }));
+      }
+    }
+    setLoading(false);
+  };
+
+  const demoLogin = (role: "admin" | "customer") => {
+    if (role === "admin") { setEmail("admin@swiftmart.com"); setPassword("admin123"); }
+    else { setEmail("customer@test.com"); setPassword("Customer123!"); }
+    setMode("login"); setMsg("Demo credentials filled - click LOGIN");
+  };
+
+  return (
+    <AuthUI
+      mode={mode} switchMode={switchMode}
+      name={name} setName={setName} email={email} setEmail={setEmail}
+      phone={phone} setPhone={setPhone} password={password} setPassword={setPassword}
+      confirm={confirm} setConfirm={setConfirm} showPw={showPw} setShowPw={setShowPw}
+      agree={agree} setAgree={setAgree}
+      errors={errors} pwErrors={pwErrors} msg={msg} loading={loading}
+      onSubmit={handleSubmit} demoLogin={demoLogin}
+      locked={Date.now() < lockedUntil}
+    />
+  );
+}
