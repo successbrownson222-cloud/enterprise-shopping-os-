@@ -1,0 +1,115 @@
+"use client";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { getUser } from "../../../lib/auth";
+
+const API_URL = (process.env as any).NEXT_PUBLIC_SHOP_API_URL || "https://swiftmart-node.onrender.com";
+const PHP_URL = (process.env as any).NEXT_PUBLIC_PHP_API_URL || "https://swiftmart-php.onrender.com";
+
+function SuccessInner() {
+  const params = useSearchParams();
+  const [status, setStatus] = useState<"verifying" | "success" | "failed">("verifying");
+  const [order, setOrder] = useState<any>(null);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    const run = async () => {
+      const orderId = params.get("orderId");
+      const gateway = params.get("gateway") || "";
+      // Paystack returns ?reference= , Flutterwave returns ?tx_ref= / ?transaction_id=
+      const reference = params.get("reference") || params.get("tx_ref") || params.get("transaction_id") || "";
+      const txRef = params.get("tx_ref") || "";
+
+      // ✅ COD - order already created in checkout page, just show it
+      if (gateway === "cod") {
+        try {
+          const last = JSON.parse(localStorage.getItem("swiftmart_last_order") || "{}");
+          setOrder(last); setStatus("success"); return;
+        } catch { setStatus("success"); return; }
+      }
+
+      // ✅ ONLINE - verify with PHP, then create Node order
+      try {
+        const pendingRaw = localStorage.getItem("swiftmart_pending_order");
+        if (!pendingRaw) throw new Error("No pending order found. Please contact support with Order ID: " + orderId);
+        const pending = JSON.parse(pendingRaw);
+
+        // 1. Verify with PHP
+        let verifyUrl = "";
+        if (pending.gateway === "paystack") verifyUrl = `${PHP_URL}/payments.php?action=verify-paystack&reference=${reference}`;
+        else verifyUrl = `${PHP_URL}/payments.php?action=verify-flutterwave&tx_ref=${txRef || reference}`;
+
+        const vr = await fetch(verifyUrl);
+        const vdata = await vr.json();
+        if (!vr.ok || vdata.status !== "success") throw new Error(vdata.error || vdata.message || "Payment verification failed");
+
+        // 2. Create order in Node (only after verified)
+        const or = await fetch(`${API_URL}/api/orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: pending.orderId,
+            items: pending.cart,
+            customer: pending.customer,
+            total: pending.total,
+            address: pending.address,
+            userEmail: pending.customer.email,
+            gateway: pending.gateway === "paystack" ? "Paystack" : "Flutterwave",
+            reference: reference || txRef,
+          }),
+        });
+        const odata = await or.json();
+        if (!or.ok) throw new Error(odata.error || "Order creation failed");
+
+        localStorage.removeItem("swiftmart_cart");
+        localStorage.removeItem("swiftmart_pending_order");
+        localStorage.setItem("swiftmart_last_order", JSON.stringify(odata.data));
+        setOrder(odata.data);
+        setStatus("success");
+      } catch (e: any) {
+        setMsg(e.message);
+        setStatus("failed");
+      }
+    };
+    run();
+  }, [params]);
+
+  if (status === "verifying") return <div className="min-h-screen bg-[#0F172A] text-white flex flex-col items-center justify-center gap-3"><p className="text-5xl">⏳</p><p className="font-bold">Verifying payment...</p><p className="text-sm text-white/50">Do not close this page</p></div>;
+
+  if (status === "failed") return (
+    <div className="min-h-screen bg-[#0F172A] text-white flex flex-col items-center justify-center p-4 text-center">
+      <p className="text-6xl">❌</p><h1 className="text-2xl font-black mt-3">Payment Failed</h1><p className="text-white/60 mt-2 max-w-md">{msg}</p>
+      <div className="flex gap-2 mt-5"><a href="/checkout" className="bg-amber-400 text-black px-5 py-3 rounded-full font-bold text-sm">Try Again →</a><a href="/" className="bg-white/10 px-5 py-3 rounded-full font-bold text-sm">Back to Shop</a></div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#0F172A] text-white font-sans p-4">
+      <div className="max-w-2xl mx-auto text-center pt-10">
+        <p className="text-7xl">✅</p>
+        <h1 className="text-3xl font-black mt-3">Order Successful!</h1>
+        <p className="text-white/60 mt-2">Thank you {order?.customer?.name || getUser()?.name || ""}. Your order is confirmed.</p>
+        <div className="bg-white/5 border border-white/10 rounded-3xl p-5 mt-5 text-left">
+          <div className="flex justify-between text-sm"><span className="text-white/60">Order ID</span><b>{order?.id}</b></div>
+          <div className="flex justify-between text-sm mt-2"><span className="text-white/60">Payment</span><b>{order?.gateway} • {order?.paymentStatus || "Confirmed"}</b></div>
+          <div className="flex justify-between text-sm mt-2"><span className="text-white/60">Total</span><b className="text-amber-400">₦{(order?.total || 0).toLocaleString()}</b></div>
+          <div className="flex justify-between text-sm mt-2"><span className="text-white/60">Delivery to</span><b className="text-right max-w-[60%]">{order?.address}</b></div>
+          <div className="mt-4 border-t border-white/10 pt-3">
+            {order?.items?.map((it: any, i: number) => (
+              <div key={i} className="flex justify-between text-sm py-1"><span>{it.img} {it.name} • {it.brand} • {it.size} • {it.color} • x{it.qty}</span><b>₦{(it.price * it.qty).toLocaleString()}</b></div>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2 mt-5 justify-center">
+          <button onClick={() => window.open(`${PHP_URL}/invoice.php?orderId=${order?.id}`, "_blank")} className="bg-white text-black px-5 py-3 rounded-full font-bold text-sm">📄 Download Invoice</button>
+          <a href="/" className="bg-amber-400 text-black px-5 py-3 rounded-full font-bold text-sm">Continue Shopping →</a>
+        </div>
+        <p className="text-xs text-white/40 mt-4">Track your order in Admin → Orders • Status: Ordered → Processing → Shipped → Delivered</p>
+      </div>
+    </div>
+  );
+}
+
+export default function SuccessPage() {
+  return <Suspense fallback={<div className="min-h-screen bg-[#0F172A] text-white flex items-center justify-center">Loading... ⏳</div>}><SuccessInner /></Suspense>;
+}
