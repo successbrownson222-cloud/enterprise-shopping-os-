@@ -1,0 +1,126 @@
+"use client";
+import type { Mode } from "../page";
+import { passwordStrength } from "../../../lib/auth";
+
+type Props = {
+  mode: Mode; switchMode: (m: Mode) => void;
+  name: string; setName: (v: string) => void;
+  email: string; setEmail: (v: string) => void;
+  phone: string; setPhone: (v: string) => void;
+  password: string; setPassword: (v: string) => void;
+  confirm: string; setConfirm: (v: string) => void;
+  showPw: boolean; setShowPw: (v: boolean) => void;
+  agree: boolean; setAgree: (v: boolean) => void;
+  errors: Record<string, string>; pwErrors: string[];
+  msg: string; loading: boolean; locked: boolean;
+  onSubmit: () => void; demoLogin: (r: "admin" | "customer") => void;
+};
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-bold text-white/80 mb-1">{label}</label>
+      {children}
+      {error && <p className="text-xs text-red-400 mt-1">⚠️ {error}</p>}
+    </div>
+  );
+}
+
+export default function AuthUI(p: Props) {
+  const isSignup = p.mode === "signup";
+  const strength = passwordStrength(p.password);
+
+  return (
+    <div className="min-h-screen bg-[#0F172A] text-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-3xl p-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-black">🛒 Swift<span className="text-amber-400">Mart</span></h1>
+          <p className="text-sm text-white/60 mt-1">{isSignup ? "Create your account to shop faster" : "Welcome back! Login to continue"}</p>
+        </div>
+
+        {/* TABS */}
+        <div className="flex bg-white/10 rounded-full p-1 mt-5">
+          <button onClick={() => p.switchMode("login")} className={`flex-1 py-2.5 rounded-full text-sm font-bold ${!isSignup ? "bg-amber-400 text-black" : ""}`}>Login</button>
+          <button onClick={() => p.switchMode("signup")} className={`flex-1 py-2.5 rounded-full text-sm font-bold ${isSignup ? "bg-amber-400 text-black" : ""}`}>Sign Up</button>
+        </div>
+
+        {/* FORM */}
+        <div className="space-y-4 mt-5">
+          {isSignup && (
+            <Field label="Full Name *" error={p.errors.name}>
+              <input value={p.name} onChange={e => p.setName(e.target.value)} placeholder="e.g. Chinedu Okafor" className="w-full bg-white/10 rounded-xl px-4 py-3 text-sm outline-none placeholder:text-white/30" />
+            </Field>
+          )}
+
+          <Field label="Email Address *" error={p.errors.email}>
+            <input value={p.email} onChange={e => p.setEmail(e.target.value)} type="email" placeholder="you@gmail.com" className="w-full bg-white/10 rounded-xl px-4 py-3 text-sm outline-none placeholder:text-white/30" />
+          </Field>
+
+          {isSignup && (
+            <Field label="Phone Number *" error={p.errors.phone}>
+              <input value={p.phone} onChange={e => p.setPhone(e.target.value)} placeholder="08012345678" className="w-full bg-white/10 rounded-xl px-4 py-3 text-sm outline-none placeholder:text-white/30" />
+              <p className="text-[11px] text-white/40 mt-1">For delivery updates on WhatsApp / SMS</p>
+            </Field>
+          )}
+
+          <Field label="Password *" error={p.errors.password}>
+            <div className="relative">
+              <input value={p.password} onChange={e => p.setPassword(e.target.value)} type={p.showPw ? "text" : "password"} placeholder="Min 8 chars, A-Z, a-z, 0-9, symbol" className="w-full bg-white/10 rounded-xl px-4 py-3 pr-12 text-sm outline-none placeholder:text-white/30" />
+              <button onClick={() => p.setShowPw(!p.showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-lg">{p.showPw ? "🙈" : "👁️"}</button>
+            </div>
+            {/* STRENGTH BAR */}
+            {p.password && (
+              <div className="mt-2">
+                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full transition-all" style={{ width: `${(strength.score / 5) * 100}%`, background: strength.color }} /></div>
+                <p className="text-xs mt-1" style={{ color: strength.color }}>Strength: {strength.label}</p>
+              </div>
+            )}
+            {/* CHECKLIST - Signup only */}
+            {isSignup && p.password && (
+              <ul className="text-xs mt-2 space-y-1">
+                <li className={p.password.length >= 8 ? "text-green-400" : "text-white/50"}>{p.password.length >= 8 ? "✅" : "❌"} At least 8 characters</li>
+                <li className={/[A-Z]/.test(p.password) ? "text-green-400" : "text-white/50"}>{/[A-Z]/.test(p.password) ? "✅" : "❌"} One uppercase (A-Z)</li>
+                <li className={/[a-z]/.test(p.password) ? "text-green-400" : "text-white/50"}>{/[a-z]/.test(p.password) ? "✅" : "❌"} One lowercase (a-z)</li>
+                <li className={/[0-9]/.test(p.password) ? "text-green-400" : "text-white/50"}>{/[0-9]/.test(p.password) ? "✅" : "❌"} One number (0-9)</li>
+                <li className={/[^A-Za-z0-9]/.test(p.password) ? "text-green-400" : "text-white/50"}>{/[^A-Za-z0-9]/.test(p.password) ? "✅" : "❌"} One symbol (!@#$%)</li>
+              </ul>
+            )}
+          </Field>
+
+          {isSignup && (
+            <Field label="Confirm Password *" error={p.errors.confirm}>
+              <input value={p.confirm} onChange={e => p.setConfirm(e.target.value)} type="password" placeholder="Repeat password" className="w-full bg-white/10 rounded-xl px-4 py-3 text-sm outline-none" />
+              {p.confirm && p.password === p.confirm && <p className="text-xs text-green-400 mt-1">✅ Passwords match</p>}
+            </Field>
+          )}
+
+          {isSignup && (
+            <div>
+              <label className="flex items-start gap-2 text-xs text-white/70 cursor-pointer">
+                <input type="checkbox" checked={p.agree} onChange={e => p.setAgree(e.target.checked)} className="mt-0.5 accent-amber-400" />
+                I agree to SwiftMart Terms & Privacy Policy
+              </label>
+              {p.errors.agree && <p className="text-xs text-red-400 mt-1">⚠️ {p.errors.agree}</p>}
+            </div>
+          )}
+
+          {!isSignup && <button className="text-xs text-amber-400 font-bold">Forgot password?</button>}
+        </div>
+
+        {p.msg && <p className="mt-4 text-sm text-center bg-white/5 rounded-xl py-2 px-3">{p.msg}</p>}
+
+        <button onClick={p.onSubmit} disabled={p.loading || p.locked} className="w-full mt-5 bg-amber-400 text-black py-3.5 rounded-full font-black disabled:opacity-50">
+          {p.loading ? "Please wait..." : p.locked ? "🔒 Locked - Try later" : isSignup ? "CREATE ACCOUNT →" : "LOGIN →"}
+        </button>
+
+        <div className="flex gap-2 mt-3">
+          <button onClick={() => p.demoLogin("admin")} className="flex-1 bg-white/10 py-2 rounded-full text-xs font-bold">Demo Admin</button>
+          <button onClick={() => p.demoLogin("customer")} className="flex-1 bg-white/10 py-2 rounded-full text-xs font-bold">Demo Customer</button>
+        </div>
+
+        <p className="text-center text-xs text-white/40 mt-4">By continuing you agree to our secure checkout. 🔒 Your password is encrypted with bcrypt.</p>
+        <button onClick={() => window.location.href = "/"} className="w-full mt-3 text-xs text-white/60">← Back to Shop</button>
+      </div>
+    </div>
+  );
+}
