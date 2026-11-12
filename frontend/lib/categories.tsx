@@ -23,3 +23,9 @@ export const BRANDS_BY_CATEGORY: Record<string, string[]> = {
 export const API_URL = (process.env as any).NEXT_PUBLIC_SHOP_API_URL || "https://swiftmart-node.onrender.com";
 export const PHP_URL = (process.env as any).NEXT_PUBLIC_PHP_API_URL || "https://swiftmart-php.onrender.com";
 export const PYTHON_URL = (process.env as any).NEXT_PUBLIC_AI_API_URL || "https://swiftmart-python.onrender.com";
+
+export type Product = {
+  id: string; name: string; price: number; oldPrice?: number; category: string;
+  brand: string; img: string; rating: number; stock: number; desc: string;
+  sizes: string[]; colors: string[]; colorHex: Record<string, string>;
+};
