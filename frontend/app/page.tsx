@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import SwiftMartUI from "./components";
 import { getToken, getUser, logout, type AuthUser } from "../lib/auth";
-import { CATEGORIES, BRANDS_BY_CATEGORY } from '../../lib/categories';
+import { CATEGORIES, BRANDS_BY_CATEGORY } from '../lib/categories';
 
 export type Product = {
   id: string; name: string; price: number; oldPrice?: number; category: string;
