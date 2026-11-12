@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import SwiftMartUI from "./components";
 import { getToken, getUser, logout, type AuthUser } from "../lib/auth";
-import { CATEGORIES, BRANDS_BY_CATEGORY, API_URL } from '../lib/categories';
+import { CATEGORIES, BRANDS_BY_CATEGORY, API_URL, PHP_URL } from '../lib/categories';
 import type { Product } from '../lib/categories';
 
 // Cart type shared with checkout - same shape backend-php expects
