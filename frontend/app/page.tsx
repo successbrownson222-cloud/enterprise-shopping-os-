@@ -11,11 +11,6 @@ export type Product = {
   sizes: string[]; colors: string[]; colorHex: Record<string, string>;
 };
 
-// ✅ URLs - 1 place only, no hardcoding in components
-export const API_URL = (process.env as any).NEXT_PUBLIC_SHOP_API_URL || "https://swiftmart-node.onrender.com";
-export const PHP_URL = (process.env as any).NEXT_PUBLIC_PHP_API_URL || "https://swiftmart-php.onrender.com";
-export const PYTHON_URL = (process.env as any).NEXT_PUBLIC_AI_API_URL || "https://swiftmart-python.onrender.com";
-
 // Cart type shared with checkout - same shape backend-php expects
 export type CartItem = Product & { brand: string; size: string; color: string; qty: number };
 
