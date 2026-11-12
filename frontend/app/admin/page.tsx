@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import AdminUI, { AdminProductForm } from '../components'
-import { CATEGORIES, BRANDS_BY_CATEGORY, Product } from "../page";
+import { BRANDS_BY_CATEGORY, Product } from "../page";
+import { CATEGORIES } from '../../lib/categories';
 
 const API_URL = (process.env as any).NEXT_PUBLIC_SHOP_API_URL || "https://swiftmart-node.onrender.com";
 
