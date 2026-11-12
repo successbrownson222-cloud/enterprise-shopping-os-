@@ -5,7 +5,6 @@ import SwiftMartUI from "./components";
 import { getToken, getUser, logout, type AuthUser } from "../lib/auth";
 import { CATEGORIES } from '../lib/categories';
 
-
 export type Product = {
   id: string; name: string; price: number; oldPrice?: number; category: string;
   brand: string; img: string; rating: number; stock: number; desc: string;
