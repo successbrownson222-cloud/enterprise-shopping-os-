@@ -3,18 +3,14 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import SwiftMartUI from "./components";
 import { getToken, getUser, logout, type AuthUser } from "../lib/auth";
+import { CATEGORIES } from '../lib/categories';
+
 
 export type Product = {
   id: string; name: string; price: number; oldPrice?: number; category: string;
   brand: string; img: string; rating: number; stock: number; desc: string;
   sizes: string[]; colors: string[]; colorHex: Record<string, string>;
 };
-
-export const CATEGORIES = [
-  "All", "Men Shoes", "Women Shoes", "Men Clothes", "Women Clothes",
-  "Children Clothes", "Children Shoes", "Cars", "TVs", "Freezers",
-  "Kitchen Utensils", "Generators", "Home Appliances"
-];
 
 export const BRANDS_BY_CATEGORY: Record<string, string[]> = {
   "Men Shoes": ["Nike", "Adidas", "Clarks", "New Balance", "Puma"],
