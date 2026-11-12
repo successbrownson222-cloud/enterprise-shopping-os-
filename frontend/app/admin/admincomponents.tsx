@@ -1,6 +1,6 @@
 "use client";
-import type { Product } from "../../page";
-import type { Order } from "../page";
+import type { Product } from "../../lib/categories";
+import type { Order } from "./page";
 
 export type AdminProductForm = {
   name:string; price:string; oldPrice:string; category:string; brand:string;
