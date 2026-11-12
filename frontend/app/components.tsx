@@ -1,5 +1,6 @@
 "use client";
-import type { Product, CartItem } from "./page";
+import type { Product } from "../lib/categories";
+import type { CartItem } from "./page";
 import type { AuthUser } from "../lib/auth";
 
 type Props = {
