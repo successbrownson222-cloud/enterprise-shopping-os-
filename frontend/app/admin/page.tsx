@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import AdminUI from '../components'
-import type { AdminProductForm } from './admincomponents'
+import AdminUI, { AdminProductForm } from './admincomponents'
 import { CATEGORIES, BRANDS_BY_CATEGORY, API_URL, Product } from '../../lib/categories';
 
 export type Order = {
