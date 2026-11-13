@@ -53,7 +53,7 @@ export default function SwiftMartUI(p: Props) {
       </header>
 
       {/* HERO */}
-      <div className="mx-4 mt-4 rounded-3xl bg-gradient-to-r from-amber-400 to-orange-500 text-black p-5 md:p-8 flex justify-between items-center">
+     <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 max-w-7xl mx-auto w-full">
         <div><p className="text-xs font-bold tracking-widest">FLASH SALE • TODAY ONLY</p><h1 className="text-3xl md:text-5xl font-black leading-tight">Everything You Need.<br />One Swift Store.</h1><p className="mt-2 text-sm font-medium">Shoes • Clothes • Cars • TVs • Generators • Freezers</p><button onClick={() => p.setCat("All")} className="mt-4 bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm">Shop Now →</button></div>
         <div className="text-6xl md:text-8xl">🛍️</div>
       </div>
