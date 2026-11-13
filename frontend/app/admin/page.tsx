@@ -14,6 +14,16 @@ const EMPTY_FORM: AdminProductForm = {
   sizes:"32\",43\",55\"", colors:"Black", colorHexText:"Black:#111"
 };
 
+// ✅ FIX: Never crash on HTML response - show real error instead
+async function safeJson(r: Response) {
+  const text = await r.text();
+  if (!text || text.trim().startsWith("<")) {
+    throw new Error(`Backend returned HTML (Status ${r.status}) - Backend down or wrong API_URL: ${API_URL}. Open ${API_URL}/api/products in browser to check.`);
+  }
+  try { return JSON.parse(text); }
+  catch { throw new Error(`Backend returned invalid JSON: ${text.slice(0,100)}`); }
+}
+
 export default function AdminPage(){
   const [token, setToken] = useState("");
   const [email, setEmail] = useState("admin@swiftmart.com");
@@ -37,25 +47,25 @@ export default function AdminPage(){
   const fetchProducts = useCallback(async()=>{
     try{
       const r = await fetch(`${API_URL}/api/products`, { cache:"no-store" });
-      const d = await r.json();
+      const d = await safeJson(r);
       setProducts(Array.isArray(d)? d : d.data||[]);
-    }catch{}
+    }catch(e:any){ setMsg("❌ Products: "+e.message); }
   },[]);
 
   const fetchOrders = useCallback(async()=>{
     if(!token) return;
     try{
       const r = await fetch(`${API_URL}/api/orders`, { headers: headers() as any });
-      const d = await r.json();
+      const d = await safeJson(r);
       setOrders(d.data||[]);
-    }catch{}
+    }catch(e:any){ setMsg("❌ Orders: "+e.message); }
   },[token, headers]);
 
   const fetchStats = useCallback(async()=>{
     if(!token) return;
     try{
       const r = await fetch(`${API_URL}/api/admin/stats`, { headers: headers() as any });
-      const d = await r.json();
+      const d = await safeJson(r);
       setStats(d);
     }catch{}
   },[token, headers]);
@@ -67,7 +77,7 @@ export default function AdminPage(){
     setLoading(true); setMsg("");
     try{
       const r = await fetch(`${API_URL}/api/auth/login`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ email, password }) });
-      const d = await r.json();
+      const d = await safeJson(r);
       if(!r.ok) throw new Error(d.error||"Login failed");
       if(d.user?.role!=="admin") throw new Error("Not an admin account");
       setToken(d.token);
@@ -79,7 +89,6 @@ export default function AdminPage(){
   const setField = (k:keyof AdminProductForm, v:string)=>{
     setForm(prev=>{
       const next = { ...prev, [k]:v };
-      // ✅ When category changes, auto-set first brand + default emoji
       if(k==="category"){
         const brands = BRANDS_BY_CATEGORY[v] || ["Generic"];
         next.brand = brands[0];
@@ -119,7 +128,7 @@ export default function AdminPage(){
       const body = parseFormToProduct();
       const url = editingId ? `${API_URL}/api/products/${editingId}` : `${API_URL}/api/products`;
       const r = await fetch(url, { method: editingId? "PUT":"POST", headers: headers() as any, body: JSON.stringify(body) });
-      const d = await r.json();
+      const d = await safeJson(r);
       if(!r.ok) throw new Error(d.error||"Save failed");
       setMsg(editingId? "✅ Product updated" : "✅ Product added - live on shop now");
       setForm(EMPTY_FORM); setEditingId(null); setTab("products");
@@ -142,14 +151,20 @@ export default function AdminPage(){
 
   const deleteProduct = async(id:string)=>{
     if(!confirm("Delete this product?")) return;
-    await fetch(`${API_URL}/api/products/${id}`, { method:"DELETE", headers: headers() as any });
-    setMsg("🗑️ Deleted");
+    try{
+      const r = await fetch(`${API_URL}/api/products/${id}`, { method:"DELETE", headers: headers() as any });
+      await safeJson(r);
+      setMsg("🗑️ Deleted");
+    }catch(e:any){ setMsg("❌ Delete: "+e.message); }
     await fetchProducts(); await fetchStats();
   };
 
   const updateOrderStatus = async(id:string, status:string)=>{
-    await fetch(`${API_URL}/api/orders/${id}/status`, { method:"PUT", headers: headers() as any, body: JSON.stringify({ status }) });
-    setMsg(`✅ Order ${id} → ${status}`);
+    try{
+      const r = await fetch(`${API_URL}/api/orders/${id}/status`, { method:"PUT", headers: headers() as any, body: JSON.stringify({ status }) });
+      await safeJson(r);
+      setMsg(`✅ Order ${id} → ${status}`);
+    }catch(e:any){ setMsg("❌ "+e.message); }
     await fetchOrders();
   };
 
@@ -177,4 +192,4 @@ export default function AdminPage(){
       fetchProducts={fetchProducts}
     />
   );
-} 
+}
