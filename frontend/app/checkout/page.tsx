@@ -15,6 +15,20 @@ export default function CheckoutPage() {
   const [gateway, setGateway] = useState<"paystack" | "flutterwave" | "cod">("paystack");
   const [loading, setLoading] = useState(false);
 
+  // ✅ FIX INFINITE WHITE SCROLL: Paint body + html black while on checkout
+  useEffect(() => {
+    const prevBody = document.body.style.backgroundColor;
+    const prevHtml = document.documentElement.style.backgroundColor;
+    document.body.style.backgroundColor = "#0F172A";
+    document.documentElement.style.backgroundColor = "#0F172A";
+    document.body.style.overflowX = "hidden";
+    return () => {
+      document.body.style.backgroundColor = prevBody;
+      document.documentElement.style.backgroundColor = prevHtml;
+      document.body.style.overflowX = "";
+    };
+  }, []);
+
   useEffect(() => {
     const u = getUser();
     if (!getToken() || !u) { window.location.href = "/auth"; return; }
@@ -63,7 +77,6 @@ export default function CheckoutPage() {
     setLoading(true);
     try {
       const orderId = "ORD-" + Date.now();
-      // Save checkout info so success page can create Node order after verify
       localStorage.setItem("swiftmart_pending_order", JSON.stringify({ orderId, gateway, total, address, phone, cart, customer: { name: user?.name, email: user?.email, phone } }));
       const action = gateway === "paystack" ? "init-paystack" : "init-flutterwave";
       const r = await fetch(`${PHP_URL}/payments.php?action=${action}`, {
@@ -81,11 +94,12 @@ export default function CheckoutPage() {
 
   const handlePay = () => gateway === "cod" ? payOnDelivery() : payOnline();
 
-  if (!user) return <div className="min-h-screen bg-[#0F172A] text-white flex items-center justify-center">Redirecting to login... ⏳</div>;
+  if (!user) return <div className="min-h-[100dvh] bg-[#0F172A] text-white flex items-center justify-center">Redirecting to login... ⏳</div>;
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-white font-sans p-4">
-      <div className="max-w-3xl mx-auto">
+    // ✅ FIX: min-h-[100dvh] + w-full + overflow-x-hidden + pb for bottom, no extra scroll beyond content
+    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-[#0F172A] text-white font-sans">
+      <div className="max-w-3xl mx-auto p-4 pb-10">
         <a href="/" className="text-amber-400 text-sm font-bold">← Back to Shop</a>
         <h1 className="text-3xl font-black mt-3">Checkout 🛒</h1>
         <p className="text-white/60 text-sm">Logged in as <b>{user.email}</b></p>
