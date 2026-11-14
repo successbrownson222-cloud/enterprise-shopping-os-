@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import type { Product } from "../lib/categories";
-import type { CartItem } from "./page";
+import type { Product } from "../lib/categories";
+type CartItem = Product & { brand: string; size: string; color: string; qty: number };
 type ChatMsg = { from: "me" | "support"; text: string };
 import type { AuthUser } from "../lib/auth";
 
