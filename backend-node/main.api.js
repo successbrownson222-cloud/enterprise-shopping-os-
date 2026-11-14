@@ -1,5 +1,6 @@
 // backend-node/main.api.js - MAIN API ONLY. No express app, no server, no socket init.
 // Matches: frontend/app/page.tsx + frontend/lib/auth.ts + frontend/app/auth + frontend/app/admin + backend-php/payments.php
+// ✅ NO STATIC PRODUCTS - NO EMOJIS - Products only come from Admin
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -10,27 +11,8 @@ const ADMIN_EMAIL = "admin@swiftmart.com";
 const ADMIN_PASS = bcrypt.hashSync("admin123", 10);
 
 // --- DB (in-memory, same as before - replace with Mongo later) ---
-let PRODUCTS = [
-  { id:"MS1", name:"Men Leather Oxford Shoes", price:45000, oldPrice:65000, category:"Men Shoes", brand:"Clarks", img:"👞", rating:4.8, stock:12, desc:"Premium leather, comfortable for office & events.", sizes:["40","41","42","43","44","45"], colors:["Black","Brown","Tan"], colorHex:{Black:"#111",Brown:"#6B4226",Tan:"#C19A6B"} },
-  { id:"MS2", name:"Men Running Sneakers", price:38000, oldPrice:52000, category:"Men Shoes", brand:"Nike", img:"👟", rating:4.7, stock:20, desc:"Lightweight, breathable, for gym & daily wear.", sizes:["39","40","41","42","43","44","45"], colors:["Black","White","Blue","Red"], colorHex:{Black:"#111",White:"#eee",Blue:"#2563eb",Red:"#dc2626"} },
-  { id:"WS1", name:"Women Block Heels", price:32000, oldPrice:45000, category:"Women Shoes", brand:"Zara", img:"👠", rating:4.9, stock:15, desc:"Elegant heels, stable block, perfect for parties.", sizes:["36","37","38","39","40","41"], colors:["Black","Nude","Red","White"], colorHex:{Black:"#111",Nude:"#E8C39E",Red:"#dc2626",White:"#eee"} },
-  { id:"MC1", name:"Men Premium T-Shirt Pack (3)", price:18000, oldPrice:25000, category:"Men Clothes", brand:"Polo", img:"👕", rating:4.7, stock:40, desc:"100% cotton, pack of 3, no fading.", sizes:["S","M","L","XL","XXL"], colors:["Black","White","Blue","Grey"], colorHex:{Black:"#111",White:"#eee",Blue:"#2563eb",Grey:"#9ca3af"} },
-  { id:"WC1", name:"Women Ankara Gown", price:48000, oldPrice:62000, category:"Women Clothes", brand:"Ankara", img:"👗", rating:4.8, stock:10, desc:"Beautiful Ankara, fitted, for weddings & events.", sizes:["S","M","L","XL"], colors:["Multi","Red","Blue","Green"], colorHex:{Multi:"#f59e0b",Red:"#dc2626",Blue:"#2563eb",Green:"#16a34a"} },
-  { id:"CC1", name:"Kids Boys Set (3pcs)", price:15000, category:"Children Clothes", brand:"Mothercare", img:"🧒", rating:4.8, stock:30, desc:"Soft cotton set for boys 2-8 years.", sizes:["2Y","4Y","6Y","8Y","10Y"], colors:["Blue","Green","Black"], colorHex:{Blue:"#2563eb",Green:"#16a34a",Black:"#111"} },
-  { id:"CS1", name:"Kids Light-Up Sneakers", price:22000, category:"Children Shoes", brand:"Nike Kids", img:"👟", rating:4.7, stock:25, desc:"Light-up sole, kids love it.", sizes:["26","28","30","32","34"], colors:["Blue","Pink","Black"], colorHex:{Blue:"#2563eb",Pink:"#f9a8d4",Black:"#111"} },
-  { id:"CAR1", name:"Toyota Camry 2022", price:18500000, oldPrice:21000000, category:"Cars", brand:"Toyota", img:"🚗", rating:4.9, stock:3, desc:"Full option, leather, reverse camera, Lagos cleared.", sizes:["2022","2023","2024"], colors:["Black","White","Silver","Red"], colorHex:{Black:"#111",White:"#eee",Silver:"#c0c0c0",Red:"#dc2626"} },
-  { id:"CAR2", name:"Lexus RX 350 2021", price:32500000, category:"Cars", brand:"Lexus", img:"🚙", rating:5.0, stock:2, desc:"Luxury SUV, sunroof, accident free.", sizes:["2021","2022"], colors:["Black","White","Grey"], colorHex:{Black:"#111",White:"#eee",Grey:"#9ca3af"} },
-  { id:"TV1", name:"Samsung Smart TV", price:385000, oldPrice:480000, category:"TVs", brand:"Samsung", img:"📺", rating:4.8, stock:14, desc:"4K Ultra HD, Netflix, YouTube, WiFi.", sizes:['32"','43"','55"','65"'], colors:["Black"], colorHex:{Black:"#111"} },
-  { id:"TV2", name:"LG Smart TV", price:295000, category:"TVs", brand:"LG", img:"📺", rating:4.7, stock:9, desc:"Full HD, Magic Remote, 2yr warranty.", sizes:['32"','43"','55"'], colors:["Black"], colorHex:{Black:"#111"} },
-  { id:"TV3", name:"Hisense Smart TV", price:245000, category:"TVs", brand:"Hisense", img:"📺", rating:4.6, stock:18, desc:"4K, Bluetooth, 1yr warranty.", sizes:['32"','43"','55"'], colors:["Black"], colorHex:{Black:"#111"} },
-  { id:"FR1", name:"Hisense Chest Freezer", price:285000, category:"Freezers", brand:"Hisense", img:"🧊", rating:4.8, stock:11, desc:"Fast freezing, low energy, 1yr warranty.", sizes:["150L","250L","350L"], colors:["Silver","White"], colorHex:{Silver:"#c0c0c0",White:"#eee"} },
-  { id:"FR2", name:"Thermocool Freezer", price:310000, category:"Freezers", brand:"Thermocool", img:"🧊", rating:4.7, stock:8, desc:"Double door, super freeze.", sizes:["200L","300L"], colors:["Silver","White"], colorHex:{Silver:"#c0c0c0",White:"#eee"} },
-  { id:"FR3", name:"LG Freezer", price:420000, category:"Freezers", brand:"LG", img:"🧊", rating:4.9, stock:5, desc:"Inverter, quiet.", sizes:["250L","350L"], colors:["Silver"], colorHex:{Silver:"#c0c0c0"} },
-  { id:"KT1", name:"Non-Stick Pot Set (12pcs)", price:45000, oldPrice:60000, category:"Kitchen Utensils", brand:"Master Chef", img:"🍳", rating:4.9, stock:35, desc:"Complete set, non-stick, easy wash.", sizes:["12pcs","16pcs","20pcs"], colors:["Black","Red","Grey"], colorHex:{Black:"#111",Red:"#dc2626",Grey:"#9ca3af"} },
-  { id:"GN1", name:"Firman Generator 5.5KVA", price:485000, oldPrice:560000, category:"Generators", brand:"Firman", img:"⚡", rating:4.8, stock:7, desc:"Key starter, copper coil, low fuel.", sizes:["2.5KVA","5.5KVA","7.5KVA"], colors:["Blue","Black"], colorHex:{Blue:"#2563eb",Black:"#111"} },
-  { id:"GN2", name:"Tiger Generator 5KVA", price:365000, category:"Generators", brand:"Tiger", img:"⚡", rating:4.6, stock:10, desc:"Manual start, durable.", sizes:["2.5KVA","5KVA"], colors:["Red","Black"], colorHex:{Red:"#dc2626",Black:"#111"} },
-  { id:"HA1", name:"Standing Fan + Rechargeable", price:55000, category:"Home Appliances", brand:"Binatone", img:"🌀", rating:4.7, stock:20, desc:"Rechargeable, 12hr battery, remote.", sizes:["16 inch","18 inch"], colors:["White","Black"], colorHex:{White:"#eee",Black:"#111"} },
-];
+// ✅ EMPTY - No static products. Admin adds real products only.
+let PRODUCTS = [];
 
 let ORDERS = [];
 let USERS = [{ id:"U1", name:"Admin", email:ADMIN_EMAIL, phone:"08012345678", password:ADMIN_PASS, role:"admin" }];
@@ -64,8 +46,11 @@ function isStrongPassword(pw){
 function cleanUser(u){ return { id:u.id, name:u.name, email:u.email, phone:u.phone||"", role:u.role }; }
 function cleanProduct(p){
   // ✅ Ensure shape matches frontend Product type: sizes[], colors[], colorHex{}
+  // ✅ NO emoji fallback - use real image URL only, else empty string
   return {
     ...p,
+    img: p.img || p.image || "", // admin uploads real image URL, never emoji
+    image: p.image || p.img || "",
     sizes: Array.isArray(p.sizes) && p.sizes.length ? p.sizes : ["One Size"],
     colors: Array.isArray(p.colors) && p.colors.length ? p.colors : ["Black"],
     colorHex: p.colorHex && typeof p.colorHex === "object" ? p.colorHex : { Black:"#111" },
@@ -148,6 +133,8 @@ router.post("/products", auth, adminOnly, (req,res)=>{
     colors:["Black"],
     colorHex:{Black:"#111"},
     ...body,
+    img: body.img || body.image || "",
+    image: body.image || body.img || "",
     price: Number(body.price),
     oldPrice: body.oldPrice ? Number(body.oldPrice) : undefined,
     stock: Number(body.stock) || 0,
@@ -185,19 +172,16 @@ router.get("/orders/:id", auth, (req,res)=>{
 });
 
 router.post("/orders", (req,res)=>{
-  // Frontend sends: { items: CartItem[], customer:{name,email,phone}, total, address, userEmail, gateway, reference/tx_ref }
   const { items, customer, total, address, userEmail, gateway, reference, tx_ref } = req.body;
   if(!items?.length) return res.status(400).json({error:"Cart empty"});
   if(!customer?.name || !customer?.email) return res.status(400).json({error:"Customer name + email required"});
   if(!total || total <= 0) return res.status(400).json({error:"Total required"});
   if(!address) return res.status(400).json({error:"Delivery address required"});
 
-  // ✅ Validate each cart item has brand/size/color (frontend enforces this)
   for(let it of items){
     if(!it.brand || !it.size || !it.color) return res.status(400).json({error:`Item ${it.name} missing brand/size/color`});
   }
 
-  // ✅ Decrease stock - do NOT go negative
   for(let it of items){
     const prod = PRODUCTS.find(p=>p.id===it.id);
     if(prod){
@@ -209,13 +193,13 @@ router.post("/orders", (req,res)=>{
   const orderId = req.body.orderId || ("ORD-"+Date.now());
   const order = {
     id: orderId,
-    items, // each: { id, name, brand, size, color, qty, price, img }
+    items,
     customer,
     userEmail: userEmail || customer.email,
     total: Number(total),
     address,
-    gateway: gateway || "Pay on Delivery", // ✅ paystack | flutterwave | Pay on Delivery
-    reference: reference || tx_ref || null, // ✅ from PHP payments.php
+    gateway: gateway || "Pay on Delivery",
+    reference: reference || tx_ref || null,
     paymentStatus: gateway && gateway !== "Pay on Delivery" ? "Paid" : "Pending",
     status: "Ordered",
     createdAt: new Date().toISOString(),
@@ -255,7 +239,6 @@ router.get("/admin/stats", auth, adminOnly, (req,res)=>{
   const revenue = ORDERS.reduce((s,o)=>s+(o.total||0),0);
   const paidRevenue = ORDERS.filter(o=>o.paymentStatus==="Paid").reduce((s,o)=>s+(o.total||0),0);
   const lowStock = PRODUCTS.filter(p=>p.stock<5);
-  // ✅ Orders by gateway for admin chart
   const byGateway = {};
   ORDERS.forEach(o=>{ byGateway[o.gateway||"Unknown"] = (byGateway[o.gateway||"Unknown"]||0)+1; });
   res.json({
