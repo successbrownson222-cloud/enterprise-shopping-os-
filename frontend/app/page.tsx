@@ -6,11 +6,11 @@ import { getToken, getUser, logout, type AuthUser } from "../lib/auth";
 import { CATEGORIES, BRANDS_BY_CATEGORY, API_URL, PHP_URL } from '../lib/categories';
 import type { Product } from '../lib/categories';
 
-export type CartItem = Product & { brand: string; size: string; color: string; qty: number };
-export type ChatMsg = { from: "me" | "support"; text: string };
+type CartItem = Product & { brand: string; size: string; color: string; qty: number };
+type ChatMsg = { from: "me" | "support"; text: string };
 
 // ✅ Slideshow data - Shop Now goes to that category
-export const SLIDES = [
+const SLIDES = [
   { id: 1, tag: "FLASH SALE • UP TO 40% OFF", title: 'Samsung 55" Smart TV', desc: "4K Ultra HD, Netflix, YouTube, WiFi. Free delivery in Lagos.", price: 385000, oldPrice: 480000, img: "📺", cat: "TVs", bg: "from-slate-900 to-amber-600" },
   { id: 2, tag: "NEW ARRIVAL", title: "Firman 5.5KVA Generator", desc: "Key starter, copper coil, low fuel. Power your home 24/7.", price: 485000, oldPrice: 560000, img: "⚡", cat: "Generators", bg: "from-amber-500 to-orange-600" },
   { id: 3, tag: "BEST SELLER", title: "Toyota Camry 2022", desc: "Full option, leather, reverse camera, Lagos cleared.", price: 18500000, oldPrice: 21000000, img: "🚗", cat: "Cars", bg: "from-slate-900 to-blue-700" },
