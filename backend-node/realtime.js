@@ -3,26 +3,52 @@ const { Server } = require('socket.io');
 
 let io = null;
 
-function initRealtime(httpServer){
+function initRealtime(httpServer) {
   io = new Server(httpServer, {
-    cors: { origin: "*" }
+    cors: { origin: "*", methods: ["GET", "POST"] }
   });
 
-  io.on("connection", (socket)=>{
+  io.on("connection", (socket) => {
     console.log("✅ User connected:", socket.id);
 
-    // Client can join a room e.g. "admin" or "customer"
-    socket.on("join", (room)=>{
+    // Join room: "admin" or "customer" or "user-<id>"
+    socket.on("join", (room) => {
       socket.join(room);
       console.log(`User ${socket.id} joined ${room}`);
     });
 
+    // === LIVE CHAT ===
+    // Customer -> Admin
+    socket.on("chat-message", (msg) => {
+      console.log("💬 Chat:", msg);
+      // Send to all admins
+      io.to("admin").emit("chat-message", msg);
+      // Also echo back to sender so frontend shows it
+      socket.emit("chat-message", msg);
+    });
+
+    // Admin -> Customer
+    socket.on("admin-reply", (msg) => {
+      console.log("👨‍💼 Admin reply:", msg);
+      // Send to all customers (or to specific user room if msg.to is set)
+      if (msg.to) {
+        io.to(msg.to).emit("chat-message", msg);
+      } else {
+        io.to("customer").emit("chat-message", msg);
+      }
+    });
+
+    // Typing indicator
+    socket.on("typing", (data) => {
+      socket.broadcast.emit("typing", data);
+    });
+
     // Frontend can ask for live products
-    socket.on("get-products", ()=>{
+    socket.on("get-products", () => {
       socket.emit("products-updated", { refresh: true });
     });
 
-    socket.on("disconnect", ()=>{
+    socket.on("disconnect", () => {
       console.log("❌ User disconnected:", socket.id);
     });
   });
@@ -30,8 +56,8 @@ function initRealtime(httpServer){
   return io;
 }
 
-function emit(event, data){
-  if(io) io.emit(event, data);
+function emit(event, data) {
+  if (io) io.emit(event, data);
 }
 
-module.exports = { initRealtime, emit }; 
+module.exports = { initRealtime, emit };
