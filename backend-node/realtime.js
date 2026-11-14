@@ -21,20 +21,31 @@ function initRealtime(httpServer) {
     // Customer -> Admin
     socket.on("chat-message", (msg) => {
       console.log("💬 Chat:", msg);
-      // Send to all admins
-      io.to("admin").emit("chat-message", msg);
-      // Also echo back to sender so frontend shows it
-      socket.emit("chat-message", msg);
+      // Send to all admins ONLY - do NOT echo back to sender
+      // Frontend already shows its own message, echo = duplicate
+      io.to("admin").emit("chat-message", {
+        text: msg.text,
+        from: msg.from || "me",
+        name: msg.name || "Guest",
+        userEmail: msg.userEmail || "guest",
+        at: Date.now(),
+      });
     });
 
     // Admin -> Customer
     socket.on("admin-reply", (msg) => {
       console.log("👨‍💼 Admin reply:", msg);
+      const out = {
+        text: msg.text,
+        from: "support",
+        name: "SwiftMart Support",
+        at: Date.now(),
+      };
       // Send to all customers (or to specific user room if msg.to is set)
       if (msg.to) {
-        io.to(msg.to).emit("chat-message", msg);
+        io.to(msg.to).emit("chat-message", out);
       } else {
-        io.to("customer").emit("chat-message", msg);
+        io.to("customer").emit("chat-message", out);
       }
     });
 
