@@ -33,7 +33,7 @@ export default function SwiftMart() {
   const [showCart, setShowCart] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  // ✅ NEW: Slideshow
+  // ✅ Slideshow
   const [slide, setSlide] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setSlide(s => (s + 1) % SLIDES.length), 4000);
@@ -44,7 +44,7 @@ export default function SwiftMart() {
     document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // ✅ NEW: Live Chat - Socket.io ready, auto-reply fallback until backend chat is wired
+  // ✅ Live Chat - Socket.io REAL backend
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>([
     { from: "support", text: "Hi 👋 Welcome to SwiftMart! Ask me about price, delivery, or stock." },
@@ -54,9 +54,9 @@ export default function SwiftMart() {
   const sendChat = (text: string) => {
     if (!text.trim()) return;
     setChatMsgs(prev => [...prev, { from: "me", text }]);
-    // ✅ When you bring backend socket file, backend will emit "chat-reply" - we already listen below
+    // ✅ SAME event name as backend: "chat-message"
     if (socketRef.current?.connected) {
-      socketRef.current.emit("chatMessage", { text, userEmail: getUser()?.email || "guest", name: getUser()?.name || "Guest" });
+      socketRef.current.emit("chat-message", { text, from: "me", userEmail: getUser()?.email || "guest", name: getUser()?.name || "Guest" });
       return; // wait for real admin reply, don't auto-reply
     }
     setTimeout(() => {
@@ -97,13 +97,16 @@ export default function SwiftMart() {
     fetchProducts();
     const s = io(API_URL, { transports: ["websocket", "polling"] });
     socketRef.current = s;
-    s.on("products-updated", () => fetchProducts());
-    // ✅ Listen for real admin reply when backend is ready
-    s.on("chat-reply", (msg: any) => {
-      if (msg?.text) setChatMsgs(prev => [...prev, { from: "support", text: msg.text }]);
+    s.on("connect", () => {
+      console.log("✅ Socket connected:", s.id);
+      s.emit("join", "customer");
     });
-    s.on("chatMessage", (msg: any) => {
-      if (msg?.text && msg?.from !== "me") setChatMsgs(prev => [...prev, { from: "support", text: msg.text }]);
+    s.on("products-updated", () => fetchProducts());
+    // ✅ ONE event name - matches backend realtime.js
+    s.on("chat-message", (msg: any) => {
+      if (!msg?.text) return;
+      if (msg.from === "me") return; // don't duplicate my own message
+      setChatMsgs(prev => [...prev, { from: "support", text: msg.text }]);
     });
     const interval = setInterval(fetchProducts, 10000);
     return () => { s.disconnect(); clearInterval(interval); };
@@ -111,7 +114,7 @@ export default function SwiftMart() {
 
   const availableBrands = cat === "All" ? ["All Brands"] : ["All Brands", ...(BRANDS_BY_CATEGORY[cat] || [])];
 
-  // ✅ NEW: Smart Search AI - suggestions + AI picks
+  // ✅ Smart Search AI - suggestions + AI picks
   const smartResults = useMemo(() => {
     const query = q.trim().toLowerCase();
     if (!query) return [];
@@ -211,7 +214,6 @@ export default function SwiftMart() {
       payWithGateway={payWithGateway} verifyPayment={verifyPayment}
       openInvoice={openInvoice} createNodeOrder={createNodeOrder}
       phpUrl={PHP_URL}
-      // ✅ NEW PROPS
       slides={SLIDES} slide={slide} setSlide={setSlide} goToSlide={goToSlide}
       smartResults={smartResults} aiPicks={aiPicks}
       chatOpen={chatOpen} setChatOpen={setChatOpen} chatMsgs={chatMsgs} sendChat={sendChat}
