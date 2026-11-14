@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import type { Product } from "../lib/categories";
-import type { CartItem, ChatMsg } from "./page";
+import type { CartItem } from "./page";
+type ChatMsg = { from: "me" | "support"; text: string };
 import type { AuthUser } from "../lib/auth";
 
 type Slide = { id:number; tag:string; title:string; desc:string; price:number; oldPrice:number; img:string; cat:string; bg:string };
@@ -35,7 +36,7 @@ type Props = {
   chatOpen?: boolean; setChatOpen?: (v:boolean)=>void; chatMsgs?: ChatMsg[]; sendChat?: (text:string)=>void;
 };
 
-const WHATSAPP = "2348000000000"; // ← Change to your real WhatsApp number
+const WHATSAPP = "09125969210"; // ← Change to your real WhatsApp number
 const isPhoto = (img: string) => img?.startsWith("http") || img?.startsWith("data:image") || img?.startsWith("/");
 
 function PImg({ img, name, cls, emojiCls }: { img: string; name: string; cls: string; emojiCls?: string }) {
