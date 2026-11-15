@@ -9,7 +9,6 @@ import type { Product } from '../lib/categories';
 type CartItem = Product & { brand: string; size: string; color: string; qty: number };
 type ChatMsg = { from: "me" | "support"; text: string };
 
-// ✅ Slideshow data - Shop Now goes to that category
 const SLIDES = [
   { id: 1, tag: "FLASH SALE • UP TO 40% OFF", title: 'Samsung 55" Smart TV', desc: "4K Ultra HD, Netflix, YouTube, WiFi. Free delivery in Lagos.", price: 385000, oldPrice: 480000, img: "📺", cat: "TVs", bg: "from-slate-900 to-amber-600" },
   { id: 2, tag: "NEW ARRIVAL", title: "Firman 5.5KVA Generator", desc: "Key starter, copper coil, low fuel. Power your home 24/7.", price: 485000, oldPrice: 560000, img: "⚡", cat: "Generators", bg: "from-amber-500 to-orange-600" },
@@ -33,34 +32,58 @@ export default function SwiftMart() {
   const [showCart, setShowCart] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  // ✅ Slideshow
+  // ✅ ADMIN CHECK - Only admins see Admin button. Customers never will.
+  const isAdmin = (user as any)?.role === "admin" || (user as any)?.isAdmin === true || user?.email === "admin@swiftmart.com";
+
+  // ✅ Slideshow - pauses on manual click so it doesn't fight the user
   const [slide, setSlide] = useState(0);
+  const [slidePaused, setSlidePaused] = useState(false);
   useEffect(() => {
-    const t = setInterval(() => setSlide(s => (s + 1) % SLIDES.length), 4000);
+    if (slidePaused) return;
+    const t = setInterval(() => setSlide(s => (s + 1) % SLIDES.length), 5000);
     return () => clearInterval(t);
-  }, []);
+  }, [slidePaused]);
+
   const goToSlide = (slideCat: string) => {
     setCat(slideCat); setBrandFilter("All Brands"); setQ("");
+    setSlidePaused(true);
+    setTimeout(() => setSlidePaused(false), 10000);
     document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // ✅ Live Chat - Socket.io REAL backend
+  // ✅ FIX WHITE SCROLL - Paint body black
+  useEffect(() => {
+    const prevBody = document.body.style.backgroundColor;
+    const prevHtml = document.documentElement.style.backgroundColor;
+    document.body.style.backgroundColor = "#0F172A";
+    document.documentElement.style.backgroundColor = "#0F172A";
+    document.body.style.overflowX = "hidden";
+    return () => {
+      document.body.style.backgroundColor = prevBody;
+      document.documentElement.style.backgroundColor = prevHtml;
+      document.body.style.overflowX = "";
+    };
+  }, []);
+
+  // ✅ Live Chat
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>([
     { from: "support", text: "Hi 👋 Welcome to SwiftMart! Ask me about price, delivery, or stock." },
   ]);
   const socketRef = useRef<Socket | null>(null);
+  const chatSeenRef = useRef<Set<string>>(new Set());
 
   const sendChat = (text: string) => {
     if (!text.trim()) return;
-    setChatMsgs(prev => [...prev, { from: "me", text }]);
-    // ✅ SAME event name as backend: "chat-message"
+    const clean = text.trim();
+    setChatMsgs(prev => [...prev, { from: "me", text: clean }]);
     if (socketRef.current?.connected) {
-      socketRef.current.emit("chat-message", { text, from: "me", userEmail: getUser()?.email || "guest", name: getUser()?.name || "Guest" });
-      return; // wait for real admin reply, don't auto-reply
+      socketRef.current.emit("chat-message", { text: clean, from: "me", userEmail: getUser()?.email || "guest", name: getUser()?.name || "Guest" });
+      return;
     }
+    // Offline fallback only
     setTimeout(() => {
-      const low = text.toLowerCase();
+      const low = clean.toLowerCase();
       let reply = "Thanks! Support will reply shortly. For urgent orders, tap WhatsApp in the chat 👇";
       if (low.includes("deliver")) reply = "We deliver in Lagos in 24hrs, outside Lagos 2-4 days. Fee depends on location.";
       if (low.includes("price") || low.includes("cost") || low.includes("how much")) reply = "All prices are on the product cards. Tell me which product you want and I'll confirm stock.";
@@ -72,6 +95,7 @@ export default function SwiftMart() {
   const handleLogout = () => { logout(); setUser(null); setCart([]); localStorage.removeItem("swiftmart_cart"); };
 
   useEffect(() => { setUser(getUser()); }, []);
+
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("swiftmart_cart") || "[]");
@@ -80,6 +104,7 @@ export default function SwiftMart() {
       if (Array.isArray(savedWish)) setWishlist(savedWish);
     } catch {}
   }, []);
+
   useEffect(() => { localStorage.setItem("swiftmart_cart", JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem("swiftmart_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
 
@@ -97,40 +122,40 @@ export default function SwiftMart() {
     fetchProducts();
     const s = io(API_URL, { transports: ["websocket", "polling"] });
     socketRef.current = s;
-    s.on("connect", () => {
-      console.log("✅ Socket connected:", s.id);
-      s.emit("join", "customer");
-    });
+    s.on("connect", () => { s.emit("join", "customer"); });
     s.on("products-updated", () => fetchProducts());
-    // ✅ ONE event name - matches backend realtime.js
     s.on("chat-message", (msg: any) => {
-      if (!msg?.text) return;
-      if (msg.from === "me") return; // don't duplicate my own message
+      if (!msg?.text || msg.from === "me") return;
+      const key = msg.text + (msg.createdAt || "");
+      if (chatSeenRef.current.has(key)) return;
+      chatSeenRef.current.add(key);
       setChatMsgs(prev => [...prev, { from: "support", text: msg.text }]);
     });
-    const interval = setInterval(fetchProducts, 10000);
+    const interval = setInterval(fetchProducts, 15000);
     return () => { s.disconnect(); clearInterval(interval); };
   }, [fetchProducts]);
 
   const availableBrands = cat === "All" ? ["All Brands"] : ["All Brands", ...(BRANDS_BY_CATEGORY[cat] || [])];
 
-  // ✅ Smart Search AI - suggestions + AI picks
+  // ✅ CLEAN SEARCH - searches name + brand + category + desc
+  const searchText = (p: Product) => `${p.name} ${p.category} ${p.brand || ""} ${(p as any).desc || ""}`.toLowerCase();
+  const query = q.trim().toLowerCase();
+
   const smartResults = useMemo(() => {
-    const query = q.trim().toLowerCase();
     if (!query) return [];
-    return products.filter(p => (p.name + " " + p.category + " " + (p.brand || "") + " " + (p.desc || "")).toLowerCase().includes(query)).slice(0, 6);
-  }, [q, products]);
+    return products.filter(p => searchText(p).includes(query)).slice(0, 6);
+  }, [query, products]);
 
   const aiPicks = useMemo(() => {
-    if (q.trim()) return smartResults.slice(0, 4);
+    if (query) return smartResults.slice(0, 4);
     return [...products].sort((a, b) => ((b.oldPrice || 0) - b.price) - ((a.oldPrice || 0) - a.price)).slice(0, 4);
-  }, [q, products, smartResults]);
+  }, [query, products, smartResults]);
 
   const filtered = useMemo(() => products.filter(p =>
     (cat === "All" || p.category === cat) &&
     (brandFilter === "All Brands" || p.brand === brandFilter) &&
-    (p.name + p.category + (p.brand || "")).toLowerCase().includes(q.toLowerCase())
-  ), [cat, brandFilter, q, products]);
+    (!query || searchText(p).includes(query))
+  ), [cat, brandFilter, query, products]);
 
   const openProduct = (p: Product) => { setSelected(p); setSelSize(""); setSelColor(p.colors?.[0] || ""); setSelBrand(p.brand || ""); setQty(1); };
   const toggleWishlist = (id: string) => setWishlist(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -158,35 +183,15 @@ export default function SwiftMart() {
     window.location.href = "/checkout";
   };
 
-  const payWithGateway = async (gateway: "paystack" | "flutterwave") => {
-    const u = getUser();
-    if (!u) { window.location.href = "/auth"; return; }
-    if (cart.length === 0) return alert("Cart is empty");
-    const orderId = "ORD-" + Date.now();
-    const action = gateway === "paystack" ? "init-paystack" : "init-flutterwave";
-    try {
-      const r = await fetch(`${PHP_URL}/payments.php?action=${action}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: u.email, amount: total, orderId, customerName: u.name, phone: (u as any).phone || "", items: cart }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || "Payment init failed");
-      const url = data.authorization_url || data.payment_link;
-      if (!url) throw new Error("No payment link returned");
-      localStorage.setItem("swiftmart_pending_order", JSON.stringify({ orderId, gateway, total, cart }));
-      window.location.href = url;
-    } catch (e: any) { alert("❌ Payment failed: " + e.message); }
-  };
-
+  // ✅ Kept for components - checkout is now the single payment flow
+  const payWithGateway = async () => { goToCheckout(); };
   const verifyPayment = async (gateway: "paystack" | "flutterwave", ref: string) => {
     const action = gateway === "paystack" ? "verify-paystack" : "verify-flutterwave";
     const param = gateway === "paystack" ? `reference=${ref}` : `tx_ref=${ref}`;
     const r = await fetch(`${PHP_URL}/payments.php?action=${action}&${param}`);
     return r.json();
   };
-
   const openInvoice = (orderId: string) => { window.open(`${PHP_URL}/invoice.php?orderId=${orderId}`, "_blank"); };
-
   const createNodeOrder = async (address: string, gateway: string) => {
     const u = getUser();
     const r = await fetch(`${API_URL}/api/orders`, {
@@ -217,6 +222,7 @@ export default function SwiftMart() {
       slides={SLIDES} slide={slide} setSlide={setSlide} goToSlide={goToSlide}
       smartResults={smartResults} aiPicks={aiPicks}
       chatOpen={chatOpen} setChatOpen={setChatOpen} chatMsgs={chatMsgs} sendChat={sendChat}
+      isAdmin={isAdmin}
     />
   );
 }
