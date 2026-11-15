@@ -12,7 +12,6 @@ function SuccessInner() {
   const [order, setOrder] = useState<any>(null);
   const [msg, setMsg] = useState("");
 
-  // ✅ FIX WHITE SCROLL: Paint body + html black while on success page
   useEffect(() => {
     const prevBody = document.body.style.backgroundColor;
     const prevHtml = document.documentElement.style.backgroundColor;
@@ -33,7 +32,6 @@ function SuccessInner() {
       const reference = params.get("reference") || params.get("tx_ref") || params.get("transaction_id") || "";
       const txRef = params.get("tx_ref") || "";
 
-      // ✅ COD - order already created in checkout page, just show it
       if (gateway === "cod") {
         try {
           const last = JSON.parse(localStorage.getItem("swiftmart_last_order") || "{}");
@@ -41,11 +39,13 @@ function SuccessInner() {
         } catch { setStatus("success"); return; }
       }
 
-      // ✅ ONLINE - verify with PHP, then create Node order
       try {
         const pendingRaw = localStorage.getItem("swiftmart_pending_order");
         if (!pendingRaw) throw new Error("No pending order found. Please contact support with Order ID: " + orderId);
         const pending = JSON.parse(pendingRaw);
+
+        // ✅ MULTI-BRANCH: Must have branchId or backend will reject order
+        if (!pending.branchId) throw new Error("Branch missing. Please go back to checkout and select a branch, then pay again.");
 
         let verifyUrl = "";
         if (pending.gateway === "paystack") verifyUrl = `${PHP_URL}/payments.php?action=verify-paystack&reference=${reference}`;
@@ -67,6 +67,7 @@ function SuccessInner() {
             userEmail: pending.customer.email,
             gateway: pending.gateway === "paystack" ? "Paystack" : "Flutterwave",
             reference: reference || txRef,
+            branchId: pending.branchId,
           }),
         });
         const odata = await or.json();
@@ -85,42 +86,55 @@ function SuccessInner() {
     run();
   }, [params]);
 
-  if (status === "verifying") return <div className="min-h-[100dvh] w-full overflow-x-hidden bg-[#0F172A] text-white flex flex-col items-center justify-center gap-3"><p className="text-5xl">⏳</p><p className="font-bold">Verifying payment...</p><p className="text-sm text-white/50">Do not close this page</p></div>;
+  if (status === "verifying") return <div className="min-h-[100dvh] w-full overflow-x-hidden bg-[#0F172A] text-white flex flex-col items-center justify-center gap-3 px-4 text-center"><p className="text-5xl">⏳</p><p className="font-bold break-words">Verifying payment...</p><p className="text-sm text-white/50 break-words">Do not close this page</p></div>;
 
   if (status === "failed") return (
     <div className="min-h-[100dvh] w-full overflow-x-hidden bg-[#0F172A] text-white flex flex-col items-center justify-center p-4 text-center">
-      <p className="text-6xl">❌</p><h1 className="text-2xl font-black mt-3">Payment Failed</h1><p className="text-white/60 mt-2 max-w-md">{msg}</p>
-      <div className="flex gap-2 mt-5"><a href="/checkout" className="bg-amber-400 text-black px-5 py-3 rounded-full font-bold text-sm">Try Again →</a><a href="/" className="bg-white/10 px-5 py-3 rounded-full font-bold text-sm">Back to Shop</a></div>
+      <p className="text-6xl">❌</p><h1 className="text-2xl font-black mt-3 break-words">Payment Failed</h1><p className="text-white/60 mt-2 max-w-md break-words">{msg}</p>
+      <div className="flex gap-2 mt-5 flex-wrap justify-center"><a href="/checkout" className="bg-amber-400 text-black px-5 py-3 rounded-full font-bold text-sm">Try Again →</a><a href="/" className="bg-white/10 px-5 py-3 rounded-full font-bold text-sm">Back to Shop</a></div>
     </div>
   );
 
   return (
     <div className="min-h-[100dvh] w-full overflow-x-hidden bg-[#0F172A] text-white font-sans">
-      <div className="max-w-2xl mx-auto text-center p-4 pb-10 pt-10">
+      <div className="max-w-2xl mx-auto text-center p-4 pb-10 pt-10 min-w-0 w-full overflow-hidden">
         <p className="text-7xl">✅</p>
-        <h1 className="text-3xl font-black mt-3">Order Successful!</h1>
-        <p className="text-white/60 mt-2">Thank you {order?.customer?.name || getUser()?.name || ""}. Your order is confirmed.</p>
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-5 mt-5 text-left">
-          <div className="flex justify-between text-sm"><span className="text-white/60">Order ID</span><b>{order?.id}</b></div>
-          <div className="flex justify-between text-sm mt-2"><span className="text-white/60">Payment</span><b>{order?.gateway} • {order?.paymentStatus || "Confirmed"}</b></div>
-          <div className="flex justify-between text-sm mt-2"><span className="text-white/60">Total</span><b className="text-amber-400">₦{(order?.total || 0).toLocaleString()}</b></div>
-          <div className="flex justify-between text-sm mt-2"><span className="text-white/60">Delivery to</span><b className="text-right max-w-[60%]">{order?.address}</b></div>
-          <div className="mt-4 border-t border-white/10 pt-3">
+        <h1 className="text-3xl font-black mt-3 break-words">Order Successful!</h1>
+        <p className="text-white/60 mt-2 break-words px-2">Thank you {order?.customer?.name || getUser()?.name || ""}. Your order is confirmed.</p>
+
+        {/* ✅ ORDER CARD - FIXED OVERFLOW */}
+        <div className="bg-white/5 border border-white/10 rounded-3xl p-5 mt-5 text-left min-w-0 w-full overflow-hidden">
+          <div className="flex justify-between gap-3 text-sm min-w-0"><span className="text-white/60 shrink-0">Order ID</span><b className="truncate min-w-0 text-right">{order?.id}</b></div>
+          <div className="flex justify-between gap-3 text-sm mt-2 min-w-0"><span className="text-white/60 shrink-0">Payment</span><b className="truncate min-w-0 text-right">{order?.gateway} • {order?.paymentStatus || "Confirmed"}</b></div>
+          <div className="flex justify-between gap-3 text-sm mt-2 min-w-0"><span className="text-white/60 shrink-0">Total</span><b className="text-amber-400 shrink-0 whitespace-nowrap">₦{(order?.total || 0).toLocaleString()}</b></div>
+          {/* ✅ NEW: Show branch that is fulfilling */}
+          {(order?.branchName || order?.branchId) && (
+            <div className="flex justify-between gap-3 text-sm mt-2 min-w-0"><span className="text-white/60 shrink-0">Branch</span><b className="text-right min-w-0 break-words">🏪 {order?.branchName || order?.branchId}{order?.branchCity ? ` — ${order.branchCity}` : ""}</b></div>
+          )}
+          <div className="flex justify-between gap-3 text-sm mt-2 min-w-0"><span className="text-white/60 shrink-0">Delivery to</span><b className="text-right min-w-0 break-words">{order?.address}</b></div>
+          <div className="mt-4 border-t border-white/10 pt-3 min-w-0">
             {order?.items?.map((it: any, i: number) => (
-              <div key={i} className="flex justify-between text-sm py-1"><span>{it.img} {it.name} • {it.brand} • {it.size} • {it.color} • x{it.qty}</span><b>₦{(it.price * it.qty).toLocaleString()}</b></div>
+              <div key={i} className="flex justify-between gap-3 text-sm py-1 min-w-0">
+                <span className="min-w-0 flex-1 break-words leading-snug">
+                  <span className="block truncate">{it.img} {it.name}</span>
+                  <span className="block text-white/50 text-xs break-words">• {it.brand} • {it.size} • {it.color} • x{it.qty}</span>
+                </span>
+                <b className="shrink-0 whitespace-nowrap">₦{(it.price * it.qty).toLocaleString()}</b>
+              </div>
             ))}
           </div>
         </div>
-        <div className="flex gap-2 mt-5 justify-center">
-          <button onClick={() => window.open(`${PHP_URL}/invoice.php?orderId=${order?.id}`, "_blank")} className="bg-white text-black px-5 py-3 rounded-full font-bold text-sm">📄 Download Invoice</button>
-          <a href="/" className="bg-amber-400 text-black px-5 py-3 rounded-full font-bold text-sm">Continue Shopping →</a>
+
+        <div className="flex gap-2 mt-5 justify-center flex-wrap">
+          <button onClick={() => window.open(`${PHP_URL}/invoice.php?orderId=${order?.id}`, "_blank")} className="bg-white text-black px-5 py-3 rounded-full font-bold text-sm break-words">📄 Download Invoice</button>
+          <a href="/" className="bg-amber-400 text-black px-5 py-3 rounded-full font-bold text-sm break-words">Continue Shopping →</a>
         </div>
-        <p className="text-xs text-white/40 mt-4">Track your order in Admin → Orders • Status: Ordered → Processing → Shipped → Delivered</p>
+        <p className="text-xs text-white/40 mt-4 break-words px-2">Track your order in Admin → Orders • Status: Ordered → Processing → Shipped → Delivered</p>
       </div>
     </div>
   );
 }
 
 export default function SuccessPage() {
-  return <Suspense fallback={<div className="min-h-[100dvh] bg-[#0F172A] text-white flex items-center justify-center">Loading... ⏳</div>}><SuccessInner /></Suspense>;
+  return <Suspense fallback={<div className="min-h-[100dvh] bg-[#0F172A] text-white flex items-center justify-center px-4">Loading... ⏳</div>}><SuccessInner /></Suspense>;
 }
