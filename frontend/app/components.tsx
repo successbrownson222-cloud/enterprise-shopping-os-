@@ -19,7 +19,14 @@ type Props = {
   goToCheckout?: () => void; updateQty?: (idx: number, delta: number) => void;
   slides?: Slide[]; slide?: number; setSlide?: (v: number) => void; goToSlide?: (cat: string) => void;
   smartResults?: Product[]; aiPicks?: Product[]; chatOpen?: boolean; setChatOpen?: (v: boolean) => void;
-  chatMsgs?: ChatMsg[]; sendChat?: (text: string) => void; isAdmin?: boolean;
+    chatMsgs?: ChatMsg[]; sendChat?: (text: string) => void; isAdmin?: boolean;
+  // ✅ Kept for page.tsx - page passes them, UI doesn't need to use them
+  // If we delete these, Vercel build FAILS with "Property does not exist"
+  payWithGateway?: (g: "paystack" | "flutterwave") => void;
+  verifyPayment?: (g: "paystack" | "flutterwave", ref: string) => Promise<any>;
+  openInvoice?: (orderId: string) => void;
+  createNodeOrder?: (address: string, gateway: string) => Promise<any>;
+  phpUrl?: string;
 };
 const WHATSAPP = "09125969210";
 const isPhoto = (img: string) => img?.startsWith("http") || img?.startsWith("data:image") || img?.startsWith("/");
